@@ -1,0 +1,109 @@
+# =========================
+# Python
+# =========================
+
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# =========================
+# Jupyter
+# =========================
+
+.ipynb_checkpoints/
+
+# =========================
+# Environment / Secrets
+# =========================
+
+.env
+.env.*
+!.env.example
+
+# =========================
+# Large / Raw Datasets
+# =========================
+
+# SEC extracted raw data
+data/raw/sec/
+
+# SEC ZIP files
+data/raw/*.zip
+
+# Other large raw datasets
+data/raw/*
+
+# Keep FinQA raw files if you want them versioned
+!data/raw/train.json
+!data/raw/dev.json
+!data/raw/test.json
+
+# =========================
+# Generated / Processed Data
+# =========================
+
+# Ignore generated datasets by default
+data/processed/*
+
+# Keep the FinQA datasets we intentionally version
+!data/processed/finqa_sft_train.json
+!data/processed/finqa_sft_dev.json
+
+# =========================
+# Model Checkpoints
+# =========================
+
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.ckpt
+
+checkpoints/
+models/
+outputs/
+
+# =========================
+# Experiment Outputs
+# =========================
+
+experiments/runs/
+experiments/logs/
+wandb/
+mlruns/
+
+# =========================
+# Logs
+# =========================
+
+*.log
+
+# =========================
+# OS
+# =========================
+
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE
+# =========================
+
+.vscode/
+.idea/
+
+# =========================
+# Temporary files
+# =========================
+
+*.tmp
+*.temp
+*.bak
+
+# SEC raw datasets
+src/data/raw/
