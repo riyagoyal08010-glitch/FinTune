@@ -1,7 +1,7 @@
 from pathlib import Path
 import zipfile
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 ZIP_FILE = Path.home() / "Downloads" / "2025q2.zip"
 OUTPUT_DIR = BASE_DIR / "data" / "raw" / "sec" / "2025q2"
