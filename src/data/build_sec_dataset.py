@@ -1,6 +1,6 @@
 import csv
-from collections import defaultdict
 from pathlib import Path
+from collections import defaultdict
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -9,75 +9,109 @@ SEC_DIR = BASE_DIR / "data" / "raw" / "sec" / "2025q2"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
 INDEX_FILE = PROCESSED_DIR / "sec_filing_index.csv"
-NUM_FILE = SEC_DIR / "num.tsv"
 PRE_FILE = SEC_DIR / "pre.tsv"
-OUTPUT_FILE = PROCESSED_DIR / "sec_structured_v1.tsv"
+NUM_FILE = PROCESSED_DIR / "sec_num_consolidated_v2.tsv"
+
+OUTPUT_FILE = (
+    PROCESSED_DIR
+    / "sec_structured_v3.tsv"
+)
 
 
 VALID_STATEMENTS = {"BS", "IS", "CF", "EQ"}
 
+PRESENTATION_ONLY_TAGS = {
+    "StatementLineItems",
+    "StatementTable",
+    "EquityComponentDomain",
+}
 
-# --------------------------------------------------
+
+# ---------------------------------------------------------
 # 1. Load filing metadata
-# --------------------------------------------------
+# ---------------------------------------------------------
 
 filings = {}
 
-with open(INDEX_FILE, "r", encoding="utf-8", newline="") as f:
+with open(
+    INDEX_FILE,
+    "r",
+    encoding="utf-8",
+    newline=""
+) as f:
+
     reader = csv.DictReader(f)
 
     for row in reader:
-        filings[row["adsh"]] = row
+        filings[row["adsh"]] = {
+            "cik": row["cik"],
+            "company": row["name"],
+            "form": row["form"],
+            "period": row["period"],
+            "filed": row["filed"],
+        }
 
 
 print(f"Filing metadata loaded: {len(filings):,}")
 
 
-# --------------------------------------------------
-# 2. Load presentation metadata
-# --------------------------------------------------
+# ---------------------------------------------------------
+# 2. Load PRE presentation metadata
+#
+# IMPORTANT:
+# Use sets so repeated PRE rows don't duplicate facts.
+# ---------------------------------------------------------
 
-# (adsh, tag) -> set of statement types
-presentation = defaultdict(set)
+presentation = defaultdict(
+    lambda: {
+        "statements": set(),
+        "labels": set(),
+    }
+)
 
-# (adsh, tag) -> human-readable labels
-labels = defaultdict(set)
 
-with open(PRE_FILE, "r", encoding="utf-8", newline="") as f:
+with open(
+    PRE_FILE,
+    "r",
+    encoding="utf-8",
+    newline=""
+) as f:
+
     reader = csv.DictReader(f, delimiter="\t")
 
     for row in reader:
-        stmt = row["stmt"]
+
+        adsh = row["adsh"]
         tag = row["tag"]
+        stmt = row["stmt"]
+        label = row["plabel"]
 
         if stmt not in VALID_STATEMENTS:
             continue
 
-        # Ignore presentation-only concepts
+        if tag in PRESENTATION_ONLY_TAGS:
+            continue
+
         if tag.endswith("Abstract"):
             continue
 
-        if tag in {
-            "StatementLineItems",
-            "StatementTable",
-            "EquityComponentDomain",
-        }:
-            continue
+        key = (adsh, tag)
 
-        key = (row["adsh"], tag)
+        presentation[key]["statements"].add(stmt)
 
-        presentation[key].add(stmt)
-
-        if row["plabel"]:
-            labels[key].add(row["plabel"])
+        if label.strip():
+            presentation[key]["labels"].add(label.strip())
 
 
-print(f"Presentation mappings loaded: {len(presentation):,}")
+print(
+    f"Presentation mappings loaded: "
+    f"{len(presentation):,}"
+)
 
 
-# --------------------------------------------------
-# 3. Stream NUM and build structured records
-# --------------------------------------------------
+# ---------------------------------------------------------
+# 3. Stream NUM and join with PRE + filing metadata
+# ---------------------------------------------------------
 
 fieldnames = [
     "adsh",
@@ -100,7 +134,13 @@ rows_written = 0
 rows_skipped = 0
 
 
-with open(NUM_FILE, "r", encoding="utf-8", newline="") as fin:
+with open(
+    NUM_FILE,
+    "r",
+    encoding="utf-8",
+    newline=""
+) as fin:
+
     reader = csv.DictReader(fin, delimiter="\t")
 
     with open(
@@ -120,63 +160,93 @@ with open(NUM_FILE, "r", encoding="utf-8", newline="") as fin:
 
         for row in reader:
 
-            # Only consolidated/default facts
+            # Only consolidated/default dimension.
             if row["dimh"] != "0x00000000":
+                rows_skipped += 1
                 continue
 
-            key = (row["adsh"], row["tag"])
+            adsh = row["adsh"]
+            tag = row["tag"]
 
-            # Must have financial-statement presentation
+            # Need filing metadata.
+            if adsh not in filings:
+                rows_skipped += 1
+                continue
+
+            # Need statement presentation.
+            key = (adsh, tag)
+
             if key not in presentation:
                 rows_skipped += 1
                 continue
 
-            filing = filings.get(row["adsh"])
-
-            if filing is None:
+            # Missing numeric values are unusable.
+            if not row["value"].strip():
                 rows_skipped += 1
                 continue
 
-            statements = sorted(presentation[key])
+            metadata = filings[adsh]
+            presentation_data = presentation[key]
 
-            # If a tag appears in multiple statements,
-            # keep the statement information rather than
-            # silently overwriting it.
-            statement = "|".join(statements)
+            statements = "|".join(
+                sorted(presentation_data["statements"])
+            )
 
-            label_values = sorted(labels.get(key, []))
-            label = " | ".join(label_values)
+            labels = "|".join(
+                sorted(presentation_data["labels"])
+            )
 
-            output_row = {
-                "adsh": row["adsh"],
-                "cik": filing["cik"],
-                "company": filing["name"],
-                "form": filing["form"],
-                "period": filing["period"],
-                "filed": filing["filed"],
-                "statement": statement,
-                "tag": row["tag"],
-                "label": label,
+            # Fallback to XBRL tag if presentation
+            # label is unavailable.
+            if not labels:
+                labels = tag
+
+            writer.writerow({
+                "adsh": adsh,
+                "cik": metadata["cik"],
+                "company": metadata["company"],
+                "form": metadata["form"],
+                "period": metadata["period"],
+                "filed": metadata["filed"],
+                "statement": statements,
+                "tag": tag,
+                "label": labels,
                 "ddate": row["ddate"],
                 "qtrs": row["qtrs"],
                 "uom": row["uom"],
                 "value": row["value"],
-            }
-
-            writer.writerow(output_row)
+            })
 
             rows_written += 1
 
             if rows_written % 500_000 == 0:
                 print(
-                    f"Written {rows_written:,} structured facts..."
+                    f"Written {rows_written:,} rows..."
                 )
 
 
-print("\n" + "=" * 50)
-print("SEC STRUCTURED DATASET COMPLETE")
-print("=" * 50)
+print("\n" + "=" * 60)
+print("SEC STRUCTURED DATASET V2")
+print("=" * 60)
 
-print(f"Rows written: {rows_written:,}")
-print(f"Rows skipped: {rows_skipped:,}")
-print(f"Saved to: {OUTPUT_FILE}")
+print(
+    f"Filing metadata:       {len(filings):,}"
+)
+
+print(
+    f"Presentation mappings: {len(presentation):,}"
+)
+
+print(
+    f"Rows written:          {rows_written:,}"
+)
+
+print(
+    f"Rows skipped:          {rows_skipped:,}"
+)
+
+print(f"\nSaved to:\n{OUTPUT_FILE}")
+
+print("\n" + "=" * 60)
+print("BUILD COMPLETE")
+print("=" * 60)

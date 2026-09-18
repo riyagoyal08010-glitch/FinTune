@@ -9,7 +9,7 @@ INPUT_FILE = (
     BASE_DIR
     / "data"
     / "processed"
-    / "sec_structured_v1.tsv"
+    / "sec_structured_v3.tsv"
 )
 
 FIELDS = [

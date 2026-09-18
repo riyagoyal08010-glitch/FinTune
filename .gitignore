@@ -37,6 +37,7 @@ data/raw/*.zip
 
 # Other large raw datasets
 data/raw/*
+data/raw/
 
 # Keep FinQA raw files if you want them versioned
 !data/raw/train.json
@@ -107,3 +108,7 @@ Thumbs.db
 
 # SEC raw datasets
 src/data/raw/
+
+# Python cache
+__pycache__/
+*.pyc
