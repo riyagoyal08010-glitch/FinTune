@@ -1,5 +1,5 @@
 # Base model
-model_name_or_path: "D:/FinTune/models/llama-3.2-3b-instruct"
+model_name_or_path: "models/llama-3.2-3b-instruct"
 
 # Dataset
 train_file: "data/processed/dataset_v2_chat_train.json"
