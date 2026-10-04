@@ -41,3 +41,5 @@ logging_steps: 10
 
 # Reproducibility
 seed: 42
+completion_only_loss: true
+packing: false
