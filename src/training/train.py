@@ -25,7 +25,7 @@ with open(CONFIG_FILE, "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
 
 
-MODEL_PATH = config["model_name_or_path"]
+MODEL_PATH = str(BASE_DIR / config["model_name_or_path"])
 TRAIN_FILE = BASE_DIR / config["train_file"]
 EVAL_FILE = BASE_DIR / config["eval_file"]
 OUTPUT_DIR = BASE_DIR / config["output_dir"]
@@ -71,6 +71,17 @@ eval_dataset = load_json_dataset(EVAL_FILE)
 print("\nDataset")
 print(f"Train examples: {len(train_dataset)}")
 print(f"Eval examples:  {len(eval_dataset)}")
+
+if not CUDA_AVAILABLE:
+    print("\n" + "=" * 60)
+    print("LOCAL VALIDATION MODE")
+    print("=" * 60)
+
+    print("Dataset loading: OK")
+    print("3B model/tokenizer loading skipped.")
+    print("Run the actual training pipeline on a CUDA GPU.")
+
+    raise SystemExit(0)
 
 
 # ============================================================
@@ -137,28 +148,6 @@ print(f"Rank: {config['lora_r']}")
 print(f"Alpha: {config['lora_alpha']}")
 print(f"Dropout: {config['lora_dropout']}")
 print("Target modules: q_proj, k_proj, v_proj, o_proj")
-
-
-# ============================================================
-# Local validation mode
-# ============================================================
-
-if not CUDA_AVAILABLE:
-
-    print("\n" + "=" * 60)
-    print("LOCAL VALIDATION MODE")
-    print("=" * 60)
-
-    print("Dataset loading: OK")
-    print("Tokenizer loading: OK")
-    print("Chat formatting: OK")
-    print("LoRA configuration: OK")
-
-    print("\n3B model loading skipped.")
-    print("Run the actual training pipeline on a CUDA GPU.")
-
-    raise SystemExit(0)
-
 
 # ============================================================
 # Model loading
