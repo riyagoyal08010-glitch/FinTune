@@ -1,0 +1,43 @@
+# Base model
+model_name_or_path: "D:/FinTune/models/llama-3.2-3b-instruct"
+
+# Dataset
+train_file: "data/processed/dataset_v2_chat_train.json"
+eval_file: "data/processed/dataset_v2_chat_dev.json"
+
+# Output
+output_dir: "outputs/fintune-llama3.2-3b-lora"
+
+# Sequence length
+max_seq_length: 512
+
+# LoRA
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+
+# Training
+num_train_epochs: 1
+learning_rate: 0.0002
+
+# Batch sizes
+per_device_train_batch_size: 1
+per_device_eval_batch_size: 1
+gradient_accumulation_steps: 8
+
+# Optimization
+gradient_checkpointing: true
+warmup_ratio: 0.03
+
+# Evaluation / saving
+eval_strategy: "steps"
+eval_steps: 100
+save_strategy: "steps"
+save_steps: 100
+save_total_limit: 2
+
+# Logging
+logging_steps: 10
+
+# Reproducibility
+seed: 42
